@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Microdonaciones</string>
+    <string name="menu_settings">Settings</string>
+    
+    <string name="search_hint">Buscar</string>
+    
+    <string name="progress_text">Cargando</string>
+    <string name="progress_error_text">Error conectando con el server</string>
+    <string name="recap_label">Recaudado</string>
+    
+</resources>
