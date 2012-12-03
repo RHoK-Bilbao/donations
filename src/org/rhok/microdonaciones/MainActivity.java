@@ -23,11 +23,13 @@ import org.rhok.microdonaciones.data.wrappers.MDProjectHtmlWrapper;
 import org.rhok.microdonaciones.resultDelegate.ResultDelegate;
 
 import android.app.ActionBar;
-import android.app.Activity;
+import android.app.DialogFragment;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.app.FragmentActivity;
 import android.text.Spanned;
 import android.util.Log;
 import android.view.Menu;
@@ -37,13 +39,12 @@ import android.webkit.WebView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.paypal.android.MECL.PayPal;
 
-public class MainActivity extends Activity implements ActionBar.OnNavigationListener{
+public class MainActivity extends FragmentActivity implements ActionBar.OnNavigationListener , DonationInputDialog.DonationInputDialogListener{
 	
 	private static final String STATE_SELECTED_NAVIGATION_ITEM = "selected_navigation_item";
 	
@@ -57,10 +58,11 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
 	protected static final int INITIALIZE_SUCCESS = 0;
 	protected static final int INITIALIZE_FAILURE = 1;
 	
+	private String selectedCampaign = null;
+	
 	private ListView lView;
 	private ProgressBar pBar;
-	private TextView tView;
-	
+	private TextView tView;	
 	private WebView _webView;
 		
 	static class IncomingHandler extends Handler {
@@ -82,11 +84,8 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
 	
 	public void handleMessage(Message msg) {
 		switch(msg.what){
-	    	case INITIALIZE_SUCCESS:
-	    		//We have initialized the application
-	            break;
 	    	case INITIALIZE_FAILURE:
-	    		//Initialization failure
+	    		//Initialization failure, app may exit...
 	    		Toast.makeText(this, "Error al inicializar Paypal", Toast.LENGTH_SHORT).show();
 	    		break;
 		}
@@ -97,16 +96,11 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         waitingUiBinds();
-        //setContentView(R.layout.activity_main);
-        //uiBinds();
         createSDFolderIfNoExist();
-        //FetchMDProjectTask task = new FetchMDProjectTask();
-        //task.execute();
         initPaypalLibrary();
         final ActionBar actionBar = getActionBar();
 		actionBar.setDisplayShowTitleEnabled(false);
 		actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
-
 		// Set up the dropdown list navigation in the action bar.
 		actionBar.setListNavigationCallbacks(
 		// Specify a SpinnerAdapter to populate the dropdown list.
@@ -178,9 +172,10 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
         return true;
     }
     
-	public void callServer(){
-		setProgressBarIndeterminateVisibility(true);
-		new PostPaymentData().execute();
+	public void showDonationDialog(String campaign){
+		selectedCampaign = campaign;
+		DialogFragment dialog = new DonationInputDialog();
+		dialog.show(getFragmentManager(), "DonationInputDialog");
 	}
 	
 	private class FetchMDProjectTask extends AsyncTask< String, Void, ArrayList<Spanned>>{
@@ -221,7 +216,6 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
 		}
 
 	}
-
 	
 	private void initPaypalLibrary(){
     	//Create a separate thread to do the initialization
@@ -245,15 +239,28 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
 		libraryInitializationThread.start();
     }
 	
-	class PostPaymentData extends AsyncTask<Void, Void, String> {
+	private class PostPaymentOptions{
+		String amount;
+		String campaing;
+		
+		public PostPaymentOptions(String amount, String campaing) {
+			super();
+			this.amount = amount;
+			this.campaing = campaing;
+		}
+	}
+	
+	class PostPaymentData extends AsyncTask<PostPaymentOptions, Void, String> {
 	    @Override
-	    protected String doInBackground(Void... params) {
+	    protected String doInBackground(PostPaymentOptions... params) {
 	    	HttpClient httpclient = new DefaultHttpClient();
 		    HttpPost httppost = new HttpPost(Config.APP_SERVER);
 		    try {
 		        // Add your data
 		        List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
-		        nameValuePairs.add(new BasicNameValuePair("amount", "12"));
+		        PostPaymentOptions paymentParams = params[0];
+		        nameValuePairs.add(new BasicNameValuePair("amount", paymentParams.amount));
+		        nameValuePairs.add(new BasicNameValuePair("item", paymentParams.campaing));
 		        httppost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 		        // Execute HTTP Post Request
 		        HttpResponse response = httpclient.execute(httppost);
@@ -275,7 +282,7 @@ public class MainActivity extends Activity implements ActionBar.OnNavigationList
 	    }
 	}
 	
-public void paypalExpressCheckout(String token) {
+	public void paypalExpressCheckout(String token) {
 		
     	if(token == null){
     		Toast.makeText(this, "Failed to load Paypal payment gateway", Toast.LENGTH_SHORT).show();
@@ -289,17 +296,20 @@ public void paypalExpressCheckout(String token) {
 		buf += "&drt=" + _deviceReferenceToken ;
 		//tokenresponse
 		buf += "&token=" + token ;
-	    //Construct the WebView
-	    _webView = new WebView(this);
-	    //Set our view to the WebView
-	    setContentView(_webView);
-	    
-	    _webView.getSettings().setJavaScriptEnabled(true);
-	    
-	    //Load our url
-	    _webView.loadUrl(buf);
-	    //The android WebView sometimes does not have focus and this affects different UI elements so we'll force the focus to work around this
-	    _webView.requestFocus(View.FOCUS_DOWN);
-	    setProgressBarIndeterminateVisibility(false);
+		
+		Intent intent = new Intent(this,DonationActivity.class);
+    	intent.putExtra("URL", buf);
+    	startActivity(intent);
+    	setProgressBarIndeterminateVisibility(false);
     }
+
+	@Override
+	public void onDonationSelection(DialogFragment dialog, int selected) {
+		// TODO Auto-generated method stub
+		String amount = getResources().getStringArray(R.array.donations)[selected];
+		amount = amount.replace(" €", "");
+		setProgressBarIndeterminateVisibility(true);
+		PostPaymentOptions params = new PostPaymentOptions(amount,this.selectedCampaign);
+		new PostPaymentData().execute(params);
+	}
 }

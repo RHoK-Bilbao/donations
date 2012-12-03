@@ -8,7 +8,8 @@
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content" 
+        android:textStyle="bold"/>
 
     <ImageView
         android:id="@+id/imageView"
@@ -26,7 +27,8 @@
         android:id="@+id/progressBarRecap"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:progressDrawable="@drawable/progressbar" />
 
     <RelativeLayout
         android:id="@+id/RelativeLayout1"
@@ -46,6 +48,14 @@
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true" />
+
+        <ImageView
+            android:id="@+id/imageViewResult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+             />
 
     </RelativeLayout>
 
